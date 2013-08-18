@@ -234,10 +234,13 @@ class NNEngine(object):
         return rtr
 def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None, dview=None):
     """Compute local affine deformation and related quantities between 2 frames.
-    'ftr0' and 'ftr1' have "particles" columns. Returns an arbitrarily-indexed DataFrame.
+    'ftr0' and 'ftr1' have "particles" columns. Returns an arbitrarily-indexed DataFrame,
+    wherein 'x' and 'y' are taken from 'ftr1'.
 
     Based on Falk & Langer, PRE 57, 7192 (1998), but normalizes by number of neighbors and
-    interparticle spacing (if 'd2min_scale' specified).
+    interparticle spacing (if 'd2min_scale' specified). As in that work, the "later" time
+    ('ftr1') is used as the reference; the result describes the transformation from that later time
+    back to the earlier time. (Simply swap 'ftr0' and 'ftr1' to get the forward transformation.)
     
     If 'd2min_scale' is given, returned values of d2min are divided by d2min_scale**2.
 
@@ -251,6 +254,34 @@ def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None,
                         on='particle', rsuffix='0').dropna()
     NNE = NNEngine(ftrcomp, cutoff, fast=fast, subset=subset)
     return NNE._affine_field(d2min_scale=d2min_scale, dview=dview)
+def local_displacements(ftr0, ftr1, cutoff, dview=None):
+    """Compute motion of particles between frames, subtracting background
+
+    'ftr0' and 'ftr1' should each have a "particle" column with particle IDs.
+    'cutoff' sets the radius within which to look for neighbors.
+    'dview' optionally gives an IPython parallel DirectView for parallelizing the computation.
+    
+    Returns a copy of 'ftr0', but with "frame" column from 'ftr1'.
+    The "xlocal" and "ylocal" columns are the position in 'ftr1', minus background motion
+        (i.e. returned to the reference frame of 'ftr0', but in a coarse-grained fashion).
+    The "dxlocal" and "dylocal" columns give the same result but as a displacement from 'ftr0'.
+    """
+    ftrcomp = ftr0.join(ftr1.set_index('particle')[['x', 'y', 'frame']], on='particle',
+                        rsuffix='1').dropna()
+    ftrcomp['xdisp'] = ftrcomp.x1 - ftrcomp.x
+    ftrcomp['ydisp'] = ftrcomp.y1 - ftrcomp.y
+    nne = NNEngine(ftrcomp, nncutoff=cutoff)
+    def neighbor_motion(pdata, data):
+        return data.mean(0)
+    framelocal = nne.map(neighbor_motion, ['xdisp', 'ydisp'],
+            ['xdnhood', 'ydnhood'], dview=dview)
+    framelocal['frame'] = framelocal.frame1
+    del framelocal['frame1']
+    framelocal['xlocal'] = framelocal.x1 - framelocal.xdnhood
+    framelocal['ylocal'] = framelocal.y1 - framelocal.ydnhood
+    framelocal['dxlocal'] = framelocal.xlocal - framelocal.x
+    framelocal['dylocal'] = framelocal.ylocal - framelocal.y
+    return framelocal
 def numberDensity(frametracks):
     """Number density of a rectangular system"""
     ftr = frametracks
