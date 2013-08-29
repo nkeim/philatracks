@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 ``philatracks``: Tools for combining imaging and rheometry of 2D materials
-=======================================
+==============================================================================
 
 Contents:
 

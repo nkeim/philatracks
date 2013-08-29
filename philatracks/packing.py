@@ -20,34 +20,28 @@ class NNEngine(object):
     Because it uses a KDTree algorithm to find nearest neighbors, expect a loop
     considering the neighbors of each particle to perform better than O(N log N).
 
-    __init__() sets up which particles will be considered; the various methods are
+    Creating an instance sets up which particles will be considered; the various methods are
     used to actually define and perform the computation.
+    
+    :param frametracks: DataFrame representing particles in 1 frame, that must have 
+        "x" and "y" columns. A "particle" column is needed for the ``subset`` option.
+    :param nncutoff: sets the maximum distance away to search for neighbors.
+    :param nnmaxcount: is the maximum expected number of neighbors. This is irrelevant for
+        the map() method.
+    :param fast: if True, at most 10% of the particles are looped over (but all their neighbors 
+        are still found). They are chosen randomly.
+    :param autoclip: if True, particles within 'nncutoff' of the system edges are not 
+        considered (assumes rectangular system).
+    :param subset: is an array of particle IDs to loop over. 
+        If ``autoclip`` is true, particles in ``subset`` but near the system edge are ignored.
 
-    You can just use any instance as an iterator; it returns (PID, neighbors) tuples,
+    You can use any instance as an iterator; it returns (PID, neighbors) tuples,
     where 'neighbors' is a subset of the 'frametracks' DataFrame. Expect it to be slow
     because of all the pandas calls. The iter_raw() and map() methods are fast and
     useful.
     """
     def __init__(self, frametracks, nncutoff=9, nnmaxcount=100,
             fast=False, autoclip=True, subset=None):
-        """Initialize an NNEngine with its KDTree, and prepare to iterate over particles.
-
-        'frametracks' is a DataFrame representing particles in 1 frame, that must have 
-        "x" and "y" columns. If there is a "particle" column, it's assumed that 
-
-        If 'fast', at most 10% of the particles are looped over (but all their neighbors 
-        are still found). They are chosen randomly.
-
-        'nncutoff' sets the maximum distance away to search for neighbors.
-        'nnmaxcount' is the maximum expected number of neighbors. This is irrelevant for
-            the map() method.
-
-        If 'autoclip', particles within 'nncutoff' of the system edges are not 
-        considered (assumes rectangular system).
-
-        'subset' is an array of particle IDs. If 'autoclip' is true, particles
-        near the system edge are ignored.
-        """
         # Initialization of particle positions
         self.frametracks = frametracks
         self.coords = self.frametracks[['x', 'y']].values
@@ -400,16 +394,13 @@ def _fast_hist_2d(data, bin_edges):
     nbins = len(bin_edges) - 1
     flatcount = np.bincount(xassign + yassign * nbins, minlength=nbins*nbins)
     return flatcount.reshape((nbins, nbins)).T
-def bondOrder6(ftr, cutoff=9, fast=False, subset=None):
-    """Like psi6(), but returned DataFrame is indexed by particle ID. DEPRECATED."""
-    return psi6(ftr, cutoff=cutoff, fast=fast, subset=subset).set_index('particle')
 def psi6(ftr, cutoff=9, fast=False, subset=None):
     """Bond order parameter psi_6 for each particle.
 
-    'cutoff' selects radius for nearest neighbors.
+    :param cutoff: selects radius for nearest neighbors.
 
-    Returns a DataFrame with particle tracks data, but including columns
-    "bopmag" and "bopangle" (radians, 0 points right).
+    :returns: DataFrame with particle tracks data, but including columns
+        "bopmag" and "bopangle" (radians, 0 points right).
     """
     NNE = NNEngine(ftr, cutoff, 10, fast=fast, subset=subset)
     def bop(xy, data):

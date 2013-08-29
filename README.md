@@ -2,6 +2,8 @@
 
 Python modules for combining particle tracking of jammed 2D packings with oscillatory rheology.
 
+[Documentation is available online](https://philatracks.readthedocs.org/en/latest/) and in the source code.
+
 Written by [Nathan Keim](http://www.seas.upenn.edu/~nkeim/), a member of the [Penn Complex Fluids Lab](http://arratia.seas.upenn.edu).
 
 Portions of this code were used in data analysis for

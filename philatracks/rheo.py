@@ -25,6 +25,11 @@ The ``params`` dictionaries that are used in this module can have the following 
     Mean of superphase and subphase density (for computing Re only)
 
 Not all parameters are required for every operation.
+
+References
+
+1.    Brooks, C. F., Fuller, G. G., Frank, C. W. & Robertson, C. R. An Interfacial Stress Rheometer To Study Rheological Transitions in Monolayers at the Air-Water Interface. Langmuir 15, 2450-2459 (1999). 
+2.    Reynaert, S., Brooks, C. F., Moldenaers, P., Vermant, J. & Fuller, G. G. Analysis of the magnetic rod interfacial stress rheometer. J. Rheol. 52, 261-285 (2008).
 """
 #   Copyright 2013 Nathan C. Keim
 #
