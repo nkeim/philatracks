@@ -1,3 +1,4 @@
+"""Sample a movie by cycle, instead of by frame."""
 import numpy as np
 import pandas
 from . import signalsmooth

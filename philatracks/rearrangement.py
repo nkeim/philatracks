@@ -118,18 +118,28 @@ def build_T1_catalog(frameiter, win=None, maxEdgeLength=16., minLengthChange=0.0
     """Identifies T1 rearrangements in a sequence of frames. 
     Returns a DataFrame with a structure similar to tracks data.
 
-    'frameiter': Iterable of tracks DataFrames. First element is used as reference topology.
-    'win' - dict with crop region. None = full frame
-    'maxEdgeLength' - longest Delaunay edge to consider. Should be ~2x first g(r) trough.
-    'minLengthChange' - Minimum factor by which aspect ratio of T1 group must change
-            to register as an event.
-    'limit' - stop after this many unique 4-particle rearrangements have been identified. 
+    :param frameiter: iterable of tracks DataFrames. First element is used as reference topology.
+    :param win: crop region. None = full frame
+    :type win: dict
+    :param maxEdgeLength: longest Delaunay edge to consider. Should be ~2x first g(r) trough.
+    :type maxEdgeLength: float
+    :param minLengthChange: Minimum factor by which aspect ratio of T1 group must change
+        to register as an event.
+    :type minLengthChange: float
+    :param limit: stop after this many unique 4-particle rearrangements have been identified. 
         1e5 might be a good choice.
-    'criterion' selects how 'minLengthChange' is applied:
-        "2012": Looks at proportional difference of aspect ratios before and after.
-            Has the drawback that it is not equal under exchange of particle pairs.
-        "2013a": Fully symmetric test.
-        When short edge length is ~6.8, a 2012 threshold of 0.1 ~ 2013a threshold of 0.005.
+    :param criterion: selects how 'minLengthChange' is applied
+    :type criterion: str
+
+    ``criterion`` can be one of the following:
+
+    ``2012``
+        Looks at proportional difference of aspect ratios before and after.
+        Has the drawback that it is not equal under exchange of particle pairs.
+    ``2013a``
+        Fully symmetric test.
+
+    When short edge length is ~6.8, a 2012 threshold of 0.1 ~ 2013a threshold of 0.005.
     """
     t1fnums, t1ids, t1len_changes = [], [], []
     # For calculating aspect ratio below

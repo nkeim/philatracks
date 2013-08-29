@@ -1,10 +1,18 @@
-"""Characterize static packings"""
+"""Characterize and compare particle packings.
+
+Conventions:
+
+``ftr`` or ``frametracks``
+    a :py:class:`pandas.DataFrame` with columns "x", "y", "frame", "particle", arbitrarily indexed.
+"""
+
 import logging
 import numpy as np
 import scipy
 import scipy.linalg.lapack, scipy.spatial
 
 selfdistance = 1e-5 # Minimum separation for particles to be distinct
+
 
 class NNEngine(object):
     """Tool for fast neighbor-based computations.
@@ -135,15 +143,15 @@ class NNEngine(object):
         """Evaluates a function for each particle, based on that particle and its
         neighbors.
 
-        fcn() will be called with data[i], data[nn_i] as arguments, 
-            where data[nn_i] is a 2D array
-        'incols' is a list of column names in the original DataFrame, corresponding
-            to the columns in the "data" arguments to fcn().
-        'outcols' is a list of new columns, in which the value(s) returned by fcn()
+        :param fcn: function to be called with ``data[i]``, ``data[nn_i]`` as arguments, 
+            where ``data[nn_i]`` is a 2D array
+        :param incols: list of column names in the original DataFrame, corresponding
+            to the columns passed to ``fcn``.
+        :param outcols: list of new column names, in which the value(s) returned by ``fcn``
             will be inserted.
-        'dview' is an optional IPython parallel direct view.
+        :param dview: optional IPython parallel direct view.
         
-        Returns a copy of the original tracks DataFrame, with new columns from 'outcols'.
+        Returns a copy of the original tracks DataFrame, with new columns from ``outcols``.
         """
         # Design notes:
         # - Things go the fastest and work the best when we send numpy arrays to the engines.
@@ -234,37 +242,49 @@ class NNEngine(object):
         return rtr
 def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None, dview=None):
     """Compute local affine deformation and related quantities between 2 frames.
-    'ftr0' and 'ftr1' have "particles" columns. Returns an arbitrarily-indexed DataFrame,
-    wherein 'x' and 'y' are taken from 'ftr1'.
+
+    ``ftr0`` and ``ftr1`` 
+        DataFrames with "particles" columns. 
+    ``cutoff``
+        Radius within which to look for neighbors. Normally includes 2 "shells" of particles
+        (i.e. 2.5*a).
+    ``d2min_scale`` 
+        If given, returned values of d2min are divided by d2min_scale**2.
+    ``fast``, ``subset``
+        See :py:class:`NNEngine`.
+    ``dview`` 
+        optionally gives an IPython parallel DirectView for parallelizing the computation.
+    
+    Returns an arbitrarily-indexed DataFrame, wherein columns 'x' and 'y' are taken from ``ftr1``.
 
     Based on Falk & Langer, PRE 57, 7192 (1998), but normalizes by number of neighbors and
-    interparticle spacing (if 'd2min_scale' specified). As in that work, the "later" time
-    ('ftr1') is used as the reference; the result describes the transformation from that later time
-    back to the earlier time. (Simply swap 'ftr0' and 'ftr1' to get the forward transformation.)
+    interparticle spacing (if ``d2min_scale`` specified). 
     
-    If 'd2min_scale' is given, returned values of d2min are divided by d2min_scale**2.
+    .. note:: As in Falk & Langer, the "later" time (``ftr1``) is used as the
+        reference; the result describes the transformation from that later time
+        back to the earlier time. (Simply swap ``ftr0`` and ``ftr1`` to get the forward
+        transformation.)
 
-    It is different from both d2min() in this module (no normalization), and affine.strainField() 
-    (no normalization, and uses the particle position as the origin, instead
-    of the center of mass of the sample).
-
-    'dview' is an optional IPython parallel direct view, for parallelizing the computation.
     """
     ftrcomp = ftr1[['particle', 'x', 'y']].join(ftr0.set_index('particle')[['x', 'y']], 
                         on='particle', rsuffix='0').dropna()
     NNE = NNEngine(ftrcomp, cutoff, fast=fast, subset=subset)
     return NNE._affine_field(d2min_scale=d2min_scale, dview=dview)
 def local_displacements(ftr0, ftr1, cutoff, dview=None):
-    """Compute motion of particles between frames, subtracting background
+    """Compute motion of particles between frames, subtracting background.
 
-    'ftr0' and 'ftr1' should each have a "particle" column with particle IDs.
-    'cutoff' sets the radius within which to look for neighbors.
-    'dview' optionally gives an IPython parallel DirectView for parallelizing the computation.
+    ``ftr0`` and ``ftr1`` 
+        should each have a "particle" column with particle IDs.
+    ``cutoff`` 
+        sets the radius within which to look for neighbors.
+    ``dview`` 
+        optionally gives an IPython parallel DirectView for parallelizing the computation.
     
-    Returns a copy of 'ftr0', but with "frame" column from 'ftr1'.
-    The "xlocal" and "ylocal" columns are the position in 'ftr1', minus background motion
-        (i.e. returned to the reference frame of 'ftr0', but in a coarse-grained fashion).
-    The "dxlocal" and "dylocal" columns give the same result but as a displacement from 'ftr0'.
+    Returns a copy of ``ftr0``, but with "frame" column from ``ftr1``.
+        The "xlocal" and "ylocal" columns are the position in ``ftr1``, minus background motion
+        (i.e. returned to the reference frame of ``ftr0``, but in a coarse-grained fashion).
+
+        The "dxlocal" and "dylocal" columns give the same result but as a displacement from ``ftr0``.
     """
     ftrcomp = ftr0.join(ftr1.set_index('particle')[['x', 'y', 'frame']], on='particle',
                         rsuffix='1').dropna()

@@ -1,17 +1,29 @@
-"""Interpret data from an interfacial stress rheometer.
+"""Interpret data from a linear oscillatory rheometer, particularly an interfacial stress rheometer.
 
-The 'params' dictionaries that are used in this module can have the following entries
+The ``params`` dictionaries that are used in this module can have the following entries
 (all in SI units):
-    'm' - Tool (i.e. needle) mass
-    'a' - Needle diameter
-    'R' - Gap between needle and wall
-    'L' - Channel length
-    'k' - Magnetic restoring force (N/m)
-    'd' - Clean-interface drag coefficient (N s/m)
-    'F0' - newtons per driving strength (e.g. amperes)
-    'freq' - Driving frequency (for modeling response) 
-    'visc' - Mean of superphase and subphase viscosity (for computing Re only)
-    'rho' - Mean of superphase and subphase density (for computing Re only)
+
+'m'
+    Tool (i.e. needle) mass
+'a'
+    Needle diameter
+'R'
+    Gap between needle and wall
+'L'
+    Channel length
+'k'
+    Magnetic restoring force (N/m)
+'d'
+    Clean-interface drag coefficient (N s/m)
+'F0'
+    newtons per unit of driving strength (e.g. amperes)
+'freq'
+    Driving frequency (for modeling response) 
+'visc'
+    Mean of superphase and subphase viscosity (for computing Re only)
+'rho'
+    Mean of superphase and subphase density (for computing Re only)
+
 Not all parameters are required for every operation.
 """
 #   Copyright 2013 Nathan C. Keim
@@ -39,26 +51,34 @@ from . import cyclic
 def fit_response(partab, toolparams):
     """Model clean-interface response from data.
 
-    'partab' is a DataFrame describing response of the needle on a clean interface
+    :param partab: DataFrame describing response of the needle on a clean interface
         for some range of parameters, with columns
-        'freq' - driving frequency
-        'amp' - amplitude of driving, in e.g. amperes
-        'delta' - measured phase lag angle (degrees)
-        'ampl_m' - measured amplitude of motion, in meters
 
-    'toolparams' is a dict providing data about the rheometer itself.
-        Here 'toolparams["m"]' gives the mass of the needle.
+        freq
+            driving frequency
+        amp
+            amplitude of driving, in e.g. amperes
+        delta
+            measured phase lag angle (degrees)
+        ampl_m
+            measured amplitude of motion, in meters
 
-    Returns a copy of 'toolparams', with new elements corresponding to
+    :param toolparams: dict providing data about the rheometer itself.
+        Only ``toolparams["m"]`` is used here.
+
+    Returns a copy of ``toolparams``, with new elements corresponding to
     coefficients in the ISR equation of motion:
-        'd' - Drag coefficient, N/(m/s)
-        'k' - Magnetic "spring constant", N/m
-        'F0' - Conversion from the driving amplitude parameter (in, e.g., amperes)
-                to newtons.
+
+    d
+        Drag coefficient, N/(m/s)
+    k
+        Magnetic "spring constant", N/m
+    F0
+        Conversion from the driving amplitude parameter (in, e.g., amperes) to newtons.
     
-    The method bootstraps from a specified mass m (in 'toolparams'),
-    using phase angle to compute k and d, and then using response amplitude to
-    find the normalization for units of force, F0.
+    The method bootstraps from a specified mass *m* (in ``toolparams``),
+    using phase angle to compute *k* and *d*, and then using response amplitude to
+    find the normalization for units of force, *F0*.
     """
     m = toolparams['m']
     # Phase difference
