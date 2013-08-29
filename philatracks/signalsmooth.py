@@ -5,7 +5,6 @@ from: http://scipy.org/Cookbook/SignalSmooth
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 def smooth(x, window_len=10, window='hanning'):
     """smooth the data using a window with requested size.
@@ -87,51 +86,3 @@ def blur_image(im, n, ny=None) :
     return(improc)
 
 
-def smooth_demo():
-    t = np.linspace(-4,4,100)
-    x = np.sin(t)
-    xn = x + np.random.randn(len(t)) * 0.1
-    y = smooth(x)
-    ws = 31
-
-    plt.subplot(211)
-    plt.plot(np.ones(ws))
-
-    windows=['flat', 'hanning', 'hamming', 'bartlett', 'blackman']
-
-    plt.hold(True)
-    for w in windows[1:]:
-        #eval('plt.plot('+w+'(ws) )')
-        plt.plot(getattr(np, w)(ws))
-
-    plt.axis([0,30,0,1.1])
-
-    plt.legend(windows)
-    plt.title("The smoothing windows")
-    plt.subplot(212)
-    plt.plot(x)
-    plt.plot(xn)
-    for w in windows:
-        plt.plot(smooth(xn,10,w))
-    l = ['original signal', 'signal with noise']
-    l.extend(windows)
-    plt.legend(l)
-    plt.title("Smoothing a noisy signal")
-    #plt.show()
-
-
-if __name__=='__main__':
-    
-    # part 1: 1d
-    smooth_demo()
-    
-    # part 2: 2d
-    X, Y = np.mgrid[-70:70, -70:70]
-    Z = np.cos((X**2+Y**2)/200.)+ np.random.normal(size=X.shape)
-    Z2 = blur_image(Z, 3)
-    plt.figure()
-    plt.imshow(Z)
-    plt.figure()
-    plt.imshow(Z2)
-    plt.show()
-    

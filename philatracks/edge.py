@@ -1,7 +1,8 @@
 """Generic edge-finding tool, useful for calibrating ISR with clean interface.
 
-Use this to extract the edges of the rheometer tool, which if you're lucky will be
-slightly dirty or bumpy. You can track those features to obtain the tool position.
+Use this to extract the edges of the rheometer tool from an image, which if
+you're lucky will be slightly dirty or bumpy. You can track those features to
+obtain the tool position.
 
 The state of the documentation and code here are a little weak.
 """

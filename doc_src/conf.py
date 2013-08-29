@@ -243,4 +243,32 @@ texinfo_documents = [
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'http://docs.python.org/': None}
+intersphinx_mapping = {'python': ('http://docs.python.org/', None),
+        'pandas': ('http://pandas.pydata.org/pandas-docs/stable/', None)}
+
+# Mock modules to avoid ImportErrors when building docs
+# Added by Nathan Keim, 130825
+# See http://docs.readthedocs.org/en/latest/faq.html#my-project-isn-t-building-with-autodoc
+class Mock(object):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return Mock()
+
+    @classmethod
+    def __getattr__(cls, name):
+        if name in ('__file__', '__path__'):
+            return '/dev/null'
+        elif name[0] == name[0].upper():
+            mockType = type(name, (), {})
+            mockType.__module__ = __name__
+            return mockType
+        else:
+            return Mock()
+
+MOCK_MODULES = ['scipy', 'scipy.linalg', 'scipy.linalg.lapack', 'scipy.spatial', 'scipy.optimize', 
+        'numpy', 'numpy.random',
+        'numexpr', 'pandas', 'matplotlib.pyplot', 'path']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = Mock()

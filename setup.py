@@ -9,5 +9,5 @@ setup(
     author_email='nkeim@seas.upenn.edu',
     url='https://github.com/nkeim/philatracks',
     packages=['philatracks'],
-    install_requires=[],
+    install_requires=['numpy', 'scipy', 'pandas'],
     )

@@ -1,4 +1,4 @@
-"""Detect topological rearrangements among many particles"""
+"""Detect topological rearrangements among many particles."""
 import numexpr
 import numpy as np
 from scipy.spatial import Delaunay
