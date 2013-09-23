@@ -394,7 +394,7 @@ def _fast_hist_2d(data, bin_edges):
     nbins = len(bin_edges) - 1
     flatcount = np.bincount(xassign + yassign * nbins, minlength=nbins*nbins)
     return flatcount.reshape((nbins, nbins)).T
-def psi6(ftr, cutoff=9, fast=False, subset=None):
+def psi6(ftr, cutoff=9, fast=False, subset=None, dview=None):
     """Bond order parameter psi_6 for each particle.
 
     :param cutoff: selects radius for nearest neighbors.
@@ -408,7 +408,7 @@ def psi6(ftr, cutoff=9, fast=False, subset=None):
         # theta=0 points to the right
         bopcmplx = np.exp(0+6j * np.arctan2(r[:,0], r[:,1])).sum() / data.shape[0]
         return bopcmplx.real, bopcmplx.imag
-    ftr_bop = NNE.map(bop, ['x', 'y'], ['bopreal', 'bopimag'])
+    ftr_bop = NNE.map(bop, ['x', 'y'], ['bopreal', 'bopimag'], dview=dview)
     ftr_bop['bopmag'] = np.sqrt(ftr_bop.bopreal**2 + ftr_bop.bopimag**2)
     ftr_bop['bopangle'] = np.arctan2(ftr_bop.bopreal, ftr_bop.bopimag) / 6
     del ftr_bop['bopreal']
