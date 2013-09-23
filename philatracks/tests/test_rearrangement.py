@@ -1,11 +1,14 @@
+import pytest
 from warnings import warn
 from path import path
 from pantracks import BigTracks
 from .. import rearrangement
 
+datasource = path('/Users/nkeim/colldata/120908/183542-mov')
+tracksfile = datasource / 'bigtracks.h5'
+
+@pytest.mark.skipif("not tracksfile.exists()")
 def test_T1_realdata():
-    datasource = path('/Users/nkeim/colldata/120908/183542-mov')
-    tracksfile = datasource / 'bigtracks.h5'
     bt = BigTracks(tracksfile)
 
     frames = [1, 100, 101, 1] # So t1cat should contain rearrangements for 100 and 101 only.

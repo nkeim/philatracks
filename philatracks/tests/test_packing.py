@@ -9,6 +9,14 @@ from .. import packing
 
 # Run with "py.test"
 
+datasource = path('/Users/nkeim/colldata/120908/183542-mov')
+tracksfile = datasource / 'bigtracks.h5'
+data_missing = not tracksfile.exists()
+
+@pytest.fixture
+def realdata():
+    from pantracks import BigTracks
+    return BigTracks(tracksfile)
 @pytest.fixture
 def fakedata():
     x, y = np.mgrid[:30,:30].astype(float)
@@ -18,12 +26,6 @@ def fakedata():
     ftr1 = pandas.DataFrame({'x': (x + strain * y).flat, 'y': y.flat, 
         'frame': 0, 'particle': range(len(x.flat))})
     return ftr0, ftr1
-@pytest.fixture
-def realdata():
-    from pantracks import BigTracks
-    datasource = path('/Users/nkeim/colldata/120908/183542-mov')
-    tracksfile = datasource / 'bigtracks.h5'
-    return BigTracks(tracksfile)
 rdcutoff = 8.2
 
 def _check_scalar(series, value):
@@ -39,6 +41,7 @@ def _perturb_ftr(ftr):
     ftr.y[ftr.particle == pid] += 0.1
     return pid, ftr
 
+@pytest.mark.skipif("data_missing")
 def test_psi6_rd(realdata):
     ftr = realdata[1]
     bop = packing.psi6(ftr, cutoff=rdcutoff)
@@ -50,6 +53,7 @@ def test_psi6_fd(fakedata):
     # psi6 of square lattice is zero
     _check_scalar(bop.bopmag, 0)
     
+@pytest.mark.skipif("data_missing")
 def test_affine_field_rd(realdata):
     afff = packing.affine_field(realdata[1], realdata[100], rdcutoff/1.5*2.5,
             d2min_scale=rdcutoff/1.5)
@@ -90,6 +94,7 @@ def test_local_displacements(fakedata):
     assert np.isclose(ld.dylocal[ld.particle == pid], 0.1)
 
 
+@pytest.mark.skipif("data_missing")
 def test_gofr_rd(realdata):
     gofr, bin_edges = packing.pairCorrelationR(realdata[1], fast=True)
     assert abs(1 - gofr[-1]) < 0.05
@@ -97,6 +102,7 @@ def test_gofr_rd(realdata):
     assert min(gofr) >= 0
 
 
+@pytest.mark.skipif("data_missing")
 def test_gofr_rd_slow(realdata):
     gofr, bin_edges = packing.pairCorrelationR(realdata[1])
     assert abs(1 - gofr[-1]) < 0.05
@@ -108,6 +114,7 @@ def test_gofr_fd(fakedata):
     assert max(gofr) > 2
     assert min(gofr) >= 0
 
+@pytest.mark.skipif("data_missing")
 def test_gofrvec_rd(realdata):
     gofr, bin_edges = packing.pairCorrelationVector(realdata[1], fast=True)
     assert gofr[0,0] == -0.1 # Outside cutoff
