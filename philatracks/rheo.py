@@ -44,7 +44,7 @@ References
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
-import logging
+from warnings import warn
 import numpy as np
 from scipy.optimize import curve_fit
 from . import signalsmooth
@@ -153,7 +153,7 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
     resp_phase = np.angle(rft[drive_maxidx]) / np.pi * 180
     resp_ampl = absrft[drive_maxidx]
     if (resp_maxidx - drive_maxidx) / (resp_maxidx + drive_maxidx) > 0.002:
-        logging.warning('Drive and response are not detected at the same \nfrequency: %f vs. %f. Using drive frequency.' \
+        warn('Drive and response are not detected at the same \nfrequency: %f vs. %f. Using drive frequency.' \
                 % (drive_peakfreq, resp_peakfreq))
     diag = {'signals': resptab, 'resp_fft': rft, 'drive_fft': dft, 'freqs': freqs,
             'drive_phase': drive_phase, 'resp_phase': resp_phase, 
@@ -235,7 +235,8 @@ def measure_rheology(params, delta, ampl_px, mpp, fpc, freq, drivecurrent):
     Bo = (abs(G) / params['freq'] * 2 * np.pi) / (params['a'] * bulkvisc)
     r = dict(delta=delta, ampl_px=ampl_px, ampl_m=ampl_m, ampl_strain=ampl_strain,
             ampl_stress=ampl_stress,
-            G_apparent=G_apparent, G_system=G_system, G=G, Gp=G.real, Gpp=G.imag, visc=visc,
+            G_apparent=repr(G_apparent), G_system=repr(G_system), 
+            G=repr(G), Gp=G.real, Gpp=G.imag, visc=visc,
             Bo=Bo)
     return r
 # Formulae for derived quantities

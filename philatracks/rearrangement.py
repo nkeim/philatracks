@@ -11,14 +11,15 @@ def edgeDF_fast(ftr, maxpid=10000000):
     'maxpid' is the highest expected particle ID number, used to construct a globally 
     unique identifier for an edge."""
     pts = np.vstack([ftr.x.values, ftr.y.values]).T
-    pids = np.array(ftr.index.values, dtype=float)
+    pids = np.array(ftr.index.values, dtype=int)
     tri = Delaunay(pts)
     # Idea: use the fact that we have a limited number of particles to quickly generate
     # a "hash" (unique number that represents an edge)
     def sortverts(va, vb, maxpid):
         return np.vstack([numexpr.evaluate('where(va > vb, va, vb)'),
            numexpr.evaluate('where(va > vb, vb, va)'), \
-           numexpr.evaluate('where(va > vb, va, vb) + maxpid * where(va > vb, vb, va)')]).T
+           numexpr.evaluate('where(va > vb, va, vb) + maxpid '
+               '* where(va > vb, vb, va)')]).T.astype('int64')
     def edges_raw(n, m):
         return sortverts(tri.vertices[:,n], tri.vertices[:,m], maxpid)
     alledges = np.vstack([edges_raw(n, m) for n, m in [(0, 1), (0, 2), (1, 2)]])
@@ -30,7 +31,7 @@ def edgeDF_fast(ftr, maxpid=10000000):
     ipids = np.where(sel, edgepids[:,0], edgepids[:,1])
     jpids = np.where(sel, edgepids[:,1], edgepids[:,0])
     return pandas.DataFrame({'i': ipids, 'j': jpids}, 
-            index=numexpr.evaluate('ipids + maxpid*jpids'))
+            index=numexpr.evaluate('ipids + maxpid*jpids').astype('int64'))
 def changedEdges_fast(ftr0, ftr1, maxEdgeLength=1e20, edgeData=None, edgeSetData=None, 
         diag=False):
     """Compares edges in 2 frames. Outputs DataFrames for lost and gained edges.
@@ -105,7 +106,9 @@ def findT1(lost, gained):
     # Then if (lost edge, gained edge) is negative in both arrays, the edges
     # cross and we have probably found a T1 event.
     xfinder = ((tsi * tsj) < 0) & ((gtsi * gtsj).T < 0)
-    return xfinder.nonzero()
+    lidxs, gidxs = xfinder.nonzero()
+    return lost.index.values[lidxs], gained.index.values[gidxs]
+    
 def particles(t1cat):
     """Return a list of the particles in a T1 catalog DataFrame.
 

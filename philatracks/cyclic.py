@@ -46,8 +46,8 @@ def find_cycle_extrema(series, samples_per_cycle):
     for cycnum in cyc_extrema.index:
         cycseries = smoothed[(smoothed.index > cycnum * samples_per_cycle) & \
                 (smoothed.index <= (cycnum + 1) * samples_per_cycle)]
-        cyc_extrema.cycmin[cycnum] = cycseries.index.values[cycseries.argmin()]
-        cyc_extrema.cycmax[cycnum] = cycseries.index.values[cycseries.argmax()]
+        cyc_extrema.cycmin[cycnum] = cycseries.index.values[cycseries.values.argmin()]
+        cyc_extrema.cycmax[cycnum] = cycseries.index.values[cycseries.values.argmax()]
     # Reformat the DataFrame, indexed by cycle, into a Series indexed by frame number.
     # The values are booleans which indicate whether the entry is a max or min.
     extrema = pandas.Series(False, index=cyc_extrema.cycmin).append( \
