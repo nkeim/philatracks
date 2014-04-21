@@ -393,7 +393,7 @@ def _fast_hist_2d(data, bin_edges):
     yassign = np.digitize(data[:,1], bin_edges[1:-1])
     nbins = len(bin_edges) - 1
     flatcount = np.bincount(xassign + yassign * nbins, minlength=nbins*nbins)
-    return flatcount.reshape((nbins, nbins)).T
+    return flatcount.reshape((nbins, nbins))
 def psi6(ftr, cutoff=9, fast=False, subset=None, dview=None):
     """Bond order parameter psi_6 for each particle.
 
