@@ -15,7 +15,7 @@ def timing(framenumbers, fpc):
     """
     fnums = np.array(framenumbers)
     fr = pandas.DataFrame({'cycle': (fnums - 1) / float(fpc),
-        'lockin': ((fr.index.values - 1) % fpc) / float(fpc)},
+        'lockin': ((fnums - 1) % fpc) / float(fpc)},
         index=fnums)
     return fr
 def cycframes(fpc, cycnum):
