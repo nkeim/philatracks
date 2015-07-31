@@ -5,7 +5,7 @@ from path import path
 import numpy as np
 import pandas
 
-from .. import packing
+from philatracks import packing
 
 # Run with "py.test"
 

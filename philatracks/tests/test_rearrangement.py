@@ -2,7 +2,7 @@ import pytest
 from warnings import warn
 from path import path
 from pantracks import BigTracks
-from .. import rearrangement
+from philatracks import rearrangement
 
 datasource = path('/Users/nkeim/colldata/120908/183542-mov')
 tracksfile = datasource / 'bigtracks.h5'

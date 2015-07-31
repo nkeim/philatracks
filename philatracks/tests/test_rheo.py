@@ -1,6 +1,6 @@
 import numpy as np
 import pandas
-from .. import rheo
+from philatracks import rheo
 
 fpc = 200.
 mpp = 1e-6
