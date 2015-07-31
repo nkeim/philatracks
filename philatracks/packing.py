@@ -196,6 +196,7 @@ class NNEngine(object):
             neighborlist = tree.query_ball_point(coords[loopindices], nncutoff)
             for i, (pindex, neighbors) in enumerate(zip(loopindices, neighborlist)):
                 neighbors.remove(pindex)
+                if len(neighbors) < 2: continue  # Minimum to satisfy DOF
                 r = data[neighbors] - np.tile(data[pindex], (len(neighbors), 1))
                 # The rest of the loop body is computation-specific.
                 try:
