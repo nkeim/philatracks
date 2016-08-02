@@ -111,6 +111,8 @@ def fit_response(partab, toolparams):
     params = toolparams.copy()
     params.update(dict(k=k, d=d, F0=F0))
     return params
+
+
 def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
     """Compares FFTs of driving and response.
 
@@ -161,6 +163,8 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
             'n': n, 'drive_peakfreq': drive_peakfreq, 'resp_peakfreq': resp_peakfreq}
     phaseangle = (drive_phase + (180 if flipsign else 0) - resp_phase) % 360
     return phaseangle, resp_ampl / n * 4, diag
+
+
 def dynamic_response(params, toolpos, mpp=1.0, smoothwindow=7, flipsign=False):
     """Instantaneous measurements in rheometer.
 
@@ -172,7 +176,7 @@ def dynamic_response(params, toolpos, mpp=1.0, smoothwindow=7, flipsign=False):
 
     Returns a DataFrame with quantities such as strain, stress, strainrate for entire movie.
     """
-    magnetflip = 1 if flipsign else -1
+    magnetflip = -1 if flipsign else 1
     data = toolpos.copy()
     # Global shear strain and tool position
     # Raw response data is either tool position, or strain from particle tracking
@@ -184,24 +188,30 @@ def dynamic_response(params, toolpos, mpp=1.0, smoothwindow=7, flipsign=False):
     dt = data.dropna().t.diff()
     # Next we explicitly implement the equation of motion (as opposed to implicitly,
     # as for the FFT-based oscillatory rheometry)
-    # This is m \ddot x = A I_\text{drive} - kx - d \dot x - F_s
+    # This is m \ddot x = A I_\text{drive} - kx - d \dot x - F_\text{interface}
     # where $m$ is the needle mass, $A I_\text{drive}$ is the force from the 
     # computer-controlled driving current, $k$ is the spring constant for 
     # central potential of the Helmholtz field, $d$ represents drag from the 
-    # bulk fluid, and $F_s$ is due to any material adsorbed at the surface.
+    # bulk fluid, and $F_\text{interface}$ is due to any material adsorbed at 
+    # the surface.
     #
     # Force corrected for position of tool (N)
-    data['Fcorrected'] = data.F - data.resp_smooth * params['k']
+    Fcorrected = data.F - data.resp_smooth * params['k']
     # Stress calculation
-    toolvel = data.resp_smooth.diff() / dt
-    data['strainrate'] = (toolvel / params['R'])
-    toolaccel = -toolvel.diff(-1) / dt
-    # Finter is opposite the F_s in the equation of motion.
-    # This is because we care about forces on the material, not on the needle.
-    Finter = toolaccel * params['m'] - data.Fcorrected - (toolvel * -abs(params['d']))
+    # Assume we have lots of (smoothed) samples so that we can use 
+    # this simple method of discrete derivatives.
+    data['toolvel'] = data.resp_smooth.diff() / dt
+    data['strainrate'] = (data.toolvel / params['R'])
+    data['toolaccel'] = -data.toolvel.diff(-1) / dt
+    # With this sign convention, positive stress <-> positive strain
+    Finter = -data.toolaccel * params['m'] + Fcorrected - (data.toolvel 
+                                                           * abs(params['d']))
+    data['Finter'] = Finter
     # Double the needle length, because there is material on both sides.
     data['stress'] = Finter / (2*params['L']) # N/m
     return data.dropna()
+
+
 def measure_rheology(params, delta, ampl_px, mpp, fpc, freq, drivecurrent):
     """Measures rheology of a sample.
     
@@ -239,22 +249,30 @@ def measure_rheology(params, delta, ampl_px, mpp, fpc, freq, drivecurrent):
             G=repr(G), Gp=G.real, Gpp=G.imag, visc=visc,
             Bo=Bo)
     return r
+
+
 # Formulae for derived quantities
 def AR(params):
     """Ratio of measured response to forcing. Equal to z / F"""
     p = params
     w = p['freq'] * 2 * np.pi
     return 1. / np.sqrt((p['k'] - p['m'] * w**2)**2 + (w**2 * p['d']**2))
+
+
 def delta(params):
     """In radians"""
     p = params
     w = p['freq'] * 2 * np.pi
     return np.arccos((p['k'] - p['m'] * w**2) / \
                      np.sqrt(w**2 * p['d']**2 + (p['k'] - p['m'] * w**2)**2))
+
+
 def Gsys(params):
     p = params
     return (p['R'] - p['a']) / (2*p['L']) \
             / AR(p) / np.exp(0-1j * delta(p))
+
+
 def Re(params, ampl_m):
     """Reynolds number calculated in the simplest way possible.
     To be more physical, we could use the fitted drag coefficient."""
