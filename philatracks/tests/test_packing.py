@@ -1,7 +1,7 @@
 from warnings import warn
 import pytest
 
-from path import path
+from os import path
 import numpy as np
 import pandas
 
@@ -9,14 +9,16 @@ from philatracks import packing
 
 # Run with "py.test"
 
-datasource = path('/Users/nkeim/colldata/120908/183542-mov')
-tracksfile = datasource / 'bigtracks.h5'
+datasource = '/nfsbigdata1/keimlab/colldata/140612/223147-mov/tracks.h5'
+tracksfile = path.join(datasource, 'tracks.h5')
 data_missing = not tracksfile.exists()
 
 @pytest.fixture
 def realdata():
-    from pantracks import BigTracks
-    return BigTracks(tracksfile)
+    import trackpy
+    return trackpy.PandasHDFStoreBig(tracksfile, mode='r')
+
+
 @pytest.fixture
 def fakedata():
     x, y = np.mgrid[:30,:30].astype(float)
@@ -26,7 +28,10 @@ def fakedata():
     ftr1 = pandas.DataFrame({'x': (x + strain * y).flat, 'y': y.flat, 
         'frame': 0, 'particle': range(len(x.flat))})
     return ftr0, ftr1
+
+
 rdcutoff = 8.2
+
 
 def _check_scalar(series, value):
     vals = series.dropna().values
