@@ -7,6 +7,7 @@ obtain the tool position.
 The state of the documentation and code here are a little weak.
 """
 import numpy as np
+import six
 
 def traceEdges(rawdata, invertImage=False, threshold=0.5, mode='both'):
     """Traces outer edges of a dark central vertical body, one per row.
@@ -25,9 +26,9 @@ def traceEdges(rawdata, invertImage=False, threshold=0.5, mode='both'):
     rows, cols = rawdata.shape
     # Convert to binary image
     if invertImage:
-	binary = np.array(rawdata < threshold, int)
+        binary = np.array(rawdata < threshold, int)
     else:
-	binary = np.array(rawdata >= threshold, int)
+        binary = np.array(rawdata >= threshold, int)
     darkpix = (binary == 0)
     # Each element in the diff array is x_n+1 - x_n in that row
     # -1: left edge between n and n+1
@@ -42,15 +43,15 @@ def traceEdges(rawdata, invertImage=False, threshold=0.5, mode='both'):
     # from a where the value crosses t.
     lininterp = lambda a, b, t=0: abs((a-t) / (a-b))
     for i in range(rows):
-	r = diff[i]
+        r = diff[i]
 	# Count from 1, because 0 has a special meaning (i.e., no edge)
-	indices = r * np.arange(1, len(r) + 1)
+        indices = r * np.arange(1, len(r) + 1)
 	# Nonzero elements represent edges
 	# Value m means there is an edge between m-1 and m in the original image data
-	edges = np.compress(indices, indices)
-	if not len(edges): continue
-	# Edge list must begin with a left edge and end with 
-	# a right edge; otherwise, ignore.
+        edges = np.compress(indices, indices)
+        if not len(edges): continue
+        # Edge list must begin with a left edge and end with 
+        # a right edge; otherwise, ignore.
 	# Believe it or not, this takes care of rows where 
 	# the actual edge falls within a dirtbox.
         left, right = None, None
@@ -67,9 +68,9 @@ def traceEdges(rawdata, invertImage=False, threshold=0.5, mode='both'):
         elif mode == 'right':
             if right is None: continue
         else:
-            raise ValueError
+            six.raise_from(ValueError)
 	# Results are legit
-	ylist.append(i)
+        ylist.append(i)
         if left is not None and mode != 'right':
             lefts.append(float(left) - 1. + \
                     lininterp(rawdata[i,left-1], rawdata[i,left], threshold))
