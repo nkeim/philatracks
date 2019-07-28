@@ -28,6 +28,21 @@ def test_measure():
     assert abs(delta - 10) < 0.01
     assert abs(ampl - 0.1) < 0.01
 
+    # Test transient
+    delta, ampl, diag = rheo.measure_response(toolpos(0.1, 10), fpc, t_trans=0)
+    assert diag['cycles_discarded'] == 0
+    assert diag['cycles_after_transient'] == 10000 / fpc
+    assert diag['n'] % 2 == 0
+    delta, ampl, diag = rheo.measure_response(toolpos(0.1, 10), fpc, t_trans=10)
+    assert diag['cycles_discarded'] == 2
+    assert diag['cycles_after_transient'] == 10000 / fpc - 2
+    assert diag['n'] % 2 == 0
+    delta, ampl, diag = rheo.measure_response(toolpos(0.1, 10), fpc, t_trans=5.1)
+    assert diag['cycles_discarded'] == 2
+    assert diag['cycles_after_transient'] == 10000 / fpc - 2
+    assert diag['n'] % 2 == 0
+
+
 def test_fit():
     # Idea: We should be able to use the model to make a fake response curve
     # as a function of frequency, then use fit_response() to recover the model parameters.
