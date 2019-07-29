@@ -20,5 +20,7 @@ Unit tests may be run with `py.test`.
 To install:
 
     pip install 'git+http://github.com/nkeim/philatracks/#egg=philatracks'
+    
+or, without git:
 
-For obtaining and reading tracks data, see [`runtrackpy`](https://github.com/nkeim/runtrackpy/)
+    pip install https://github.com/nkeim/philatracks/archive/master.zip
