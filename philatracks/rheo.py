@@ -61,13 +61,16 @@ def fit_response(partab, toolparams):
     :param partab: DataFrame describing response of the needle on a clean interface
         for some range of parameters, with columns
 
-        freq
+        freq:
             driving frequency
-        amp
+
+        amp:
             amplitude of driving, in e.g. amperes
-        delta
+
+        delta:
             measured phase lag angle (degrees)
-        ampl_m
+
+        ampl_m:
             measured amplitude of motion, in meters
 
     :param toolparams: dict providing data about the rheometer itself.
@@ -145,8 +148,7 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
     cycles_to_discard = int(np.ceil(frames_trans / fpc))
     frames_to_discard = int(cycles_to_discard * fpc)
     n = (len(toolpos) - frames_to_discard)
-    # Need an even number of samples.
-    n = int(2 * np.floor(n / 2.))
+    n = int(2 * np.floor(n / 2.))  # Need an even number of samples.
     resptab = toolpos.iloc[-n:]
     assert len(resptab) == n
 
@@ -154,7 +156,7 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
     # FFT to compute phase difference
     rft = np.fft.rfft((resptab.resp.values - resptab.resp.mean()) * np.hanning(n))
     dft = np.fft.rfft(resptab.current.values * np.hanning(n))
-    freqs = np.fft.fftfreq(n)[:n/2 + 1]
+    freqs = np.fft.fftfreq(n)[:int(n/2) + 1]
     # Pick out peaks only
     absrft = np.abs(rft)
     absdft = np.abs(dft)
@@ -172,6 +174,7 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
         warn('Drive and response are not detected at the same \nfrequency: %f vs. %f. Using drive frequency.'
                 % (drive_peakfreq, resp_peakfreq))
     diag = {'cycles_discarded': cycles_to_discard, 'cycles_after_transient': cycles_after_transient,
+            'frames_to_discard': frames_to_discard,
             'signals': resptab, 'resp_fft': rft, 'drive_fft': dft, 'freqs': freqs,
             'drive_phase': drive_phase, 'resp_phase': resp_phase, 
             'drive_ampl': drive_ampl / n * 4,
