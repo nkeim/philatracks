@@ -1,15 +1,15 @@
 import pytest
 from warnings import warn
-from path import path
-from pantracks import BigTracks
+from os import path
+import trackpy
 from philatracks import rearrangement
 
-datasource = path('/Users/nkeim/colldata/120908/183542-mov')
-tracksfile = datasource / 'bigtracks.h5'
+datasource = '/nfsbigdata1/keimlab/colldata/140612/223147-mov'
+tracksfile = path.join(datasource, 'tracks.h5')
 
-@pytest.mark.skipif("not tracksfile.exists()")
+@pytest.mark.skipif("not path.exists(tracksfile)")
 def test_T1_realdata():
-    bt = BigTracks(tracksfile)
+    bt = trackpy.PandasHDFStoreBig(tracksfile, mode='r')
 
     frames = [1, 100, 101, 1] # So t1cat should contain rearrangements for 100 and 101 only.
     t1cat = rearrangement.build_T1_catalog((bt[i] for i in frames))

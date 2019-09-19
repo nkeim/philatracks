@@ -1,3 +1,4 @@
+from __future__ import division
 """Interpret data from a linear oscillatory rheometer, particularly an interfacial stress rheometer.
 
 The ``params`` dictionaries that are used in this module can have the following entries
@@ -50,6 +51,7 @@ from scipy.optimize import curve_fit
 from . import signalsmooth
 import pandas
 from . import cyclic
+import six
 
 # NOTE: All units are SI unless otherwise specified.
 
@@ -104,10 +106,10 @@ def fit_response(partab, toolparams):
                                 partab.ampl_m.values / partab.amp.values)
     #print popt_ampl
     F0 = popt_ampl[0]
-    print 'Inertial mass m:', m, 'kg'
-    print 'Fit spring constant k (from phase angle):', k, 'N/m'
-    print 'Fit drag coefficient d (from phase angle):', d, 'N s/m'
-    print 'Fit force coefficient F0', F0, 'N/A'
+    six.print_('Inertial mass m:', m, 'kg')
+    six.print_('Fit spring constant k (from phase angle):', k, 'N/m')
+    six.print_('Fit drag coefficient d (from phase angle):', d, 'N s/m')
+    six.print_('Fit force coefficient F0', F0, 'N/A')
     params = toolparams.copy()
     params.update(dict(k=k, d=d, F0=F0))
     return params

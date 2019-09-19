@@ -1,3 +1,6 @@
 doc
 philatracks.egg-info
 *.pyc
+philatracks/tests/.DS_Store
+philatracks/.DS_Store
+.DS_Store
