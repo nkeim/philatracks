@@ -142,7 +142,7 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
     # We will apply a Hanning window as well.
     # Find the number of frames in the transient
     try:
-        frames_trans = (toolpos.t >= t_trans).nonzero()[0][0]
+        frames_trans = (toolpos.t >= t_trans).to_numpy().nonzero()[0][0]
     except IndexError:
         raise ValueError('Tool trajectory is shorter than transient duration.')
     cycles_to_discard = int(np.ceil(frames_trans / fpc))
