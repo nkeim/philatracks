@@ -61,13 +61,16 @@ def fit_response(partab, toolparams):
     :param partab: DataFrame describing response of the needle on a clean interface
         for some range of parameters, with columns
 
-        freq
+        freq:
             driving frequency
-        amp
+
+        amp:
             amplitude of driving, in e.g. amperes
-        delta
+
+        delta:
             measured phase lag angle (degrees)
-        ampl_m
+
+        ampl_m:
             measured amplitude of motion, in meters
 
     :param toolparams: dict providing data about the rheometer itself.
@@ -127,7 +130,9 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
     
     Returns phase angle difference (deg), response amplitude, and diagnostic dict.
 
-    Discards first 't_trans' seconds of the movie.
+    Discards first 't_trans' seconds of the movie, rounded up to an integer
+    number of cycles.
+
     Specify 'flipsign' if displacement and forcing signals have opposite polarity.
 
     Note that reported amplitudes have been de-normalized and so approximate the actual
@@ -135,14 +140,23 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
     """
     # For consistency, make sure sample contains an integer number of cycles.
     # We will apply a Hanning window as well.
-    cycles_after_transient = int(np.floor(float(len(toolpos[toolpos.t >= t_trans])) \
-            / fpc))
-    resptab = toolpos[toolpos.t >= t_trans][:int(cycles_after_transient) * fpc]
-    n = len(resptab)
+    # Find the number of frames in the transient
+    try:
+        frames_trans = (toolpos.t >= t_trans).to_numpy().nonzero()[0][0]
+    except IndexError:
+        raise ValueError('Tool trajectory is shorter than transient duration.')
+    cycles_to_discard = int(np.ceil(frames_trans / fpc))
+    frames_to_discard = int(cycles_to_discard * fpc)
+    n = (len(toolpos) - frames_to_discard)
+    n = int(2 * np.floor(n / 2.))  # Need an even number of samples.
+    resptab = toolpos.iloc[-n:]
+    assert len(resptab) == n
+
+    cycles_after_transient = n / fpc
     # FFT to compute phase difference
     rft = np.fft.rfft((resptab.resp.values - resptab.resp.mean()) * np.hanning(n))
     dft = np.fft.rfft(resptab.current.values * np.hanning(n))
-    freqs = np.fft.fftfreq(n)[:n/2 + 1]
+    freqs = np.fft.fftfreq(n)[:int(n/2) + 1]
     # Pick out peaks only
     absrft = np.abs(rft)
     absdft = np.abs(dft)
@@ -157,9 +171,11 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
     resp_phase = np.angle(rft[drive_maxidx]) / np.pi * 180
     resp_ampl = absrft[drive_maxidx]
     if (resp_maxidx - drive_maxidx) / (resp_maxidx + drive_maxidx) > 0.002:
-        warn('Drive and response are not detected at the same \nfrequency: %f vs. %f. Using drive frequency.' \
+        warn('Drive and response are not detected at the same \nfrequency: %f vs. %f. Using drive frequency.'
                 % (drive_peakfreq, resp_peakfreq))
-    diag = {'signals': resptab, 'resp_fft': rft, 'drive_fft': dft, 'freqs': freqs,
+    diag = {'cycles_discarded': cycles_to_discard, 'cycles_after_transient': cycles_after_transient,
+            'frames_to_discard': frames_to_discard,
+            'signals': resptab, 'resp_fft': rft, 'drive_fft': dft, 'freqs': freqs,
             'drive_phase': drive_phase, 'resp_phase': resp_phase, 
             'drive_ampl': drive_ampl / n * 4,
             'n': n, 'drive_peakfreq': drive_peakfreq, 'resp_peakfreq': resp_peakfreq}

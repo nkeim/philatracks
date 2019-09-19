@@ -42,7 +42,7 @@ def _perturb_ftr(ftr):
     Return the ID of the particle, and the perturbed DataFrame."""
     ftr = ftr.copy()
     pid = ftr.particle[(ftr.x == 15) & (ftr.y == 15)].values[0]
-    ftr.y[ftr.particle == pid] += 0.1
+    ftr.loc[ftr.particle == pid, 'y'] += 0.1
     return pid, ftr
 
 @pytest.mark.skipif("data_missing")

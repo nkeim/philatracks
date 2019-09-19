@@ -44,16 +44,16 @@ def traceEdges(rawdata, invertImage=False, threshold=0.5, mode='both'):
     lininterp = lambda a, b, t=0: abs((a-t) / (a-b))
     for i in range(rows):
         r = diff[i]
-	# Count from 1, because 0 has a special meaning (i.e., no edge)
+        # Count from 1, because 0 has a special meaning (i.e., no edge)
         indices = r * np.arange(1, len(r) + 1)
-	# Nonzero elements represent edges
-	# Value m means there is an edge between m-1 and m in the original image data
+        # Nonzero elements represent edges
+        # Value m means there is an edge between m-1 and m in the original image data
         edges = np.compress(indices, indices)
         if not len(edges): continue
         # Edge list must begin with a left edge and end with 
         # a right edge; otherwise, ignore.
-	# Believe it or not, this takes care of rows where 
-	# the actual edge falls within a dirtbox.
+        # Believe it or not, this takes care of rows where
+        # the actual edge falls within a dirtbox.
         left, right = None, None
         if edges[0] < 0: left = -edges[0]
         if edges[-1] > 0: right = edges[-1]
@@ -69,7 +69,7 @@ def traceEdges(rawdata, invertImage=False, threshold=0.5, mode='both'):
             if right is None: continue
         else:
             six.raise_from(ValueError)
-	# Results are legit
+        # Results are legit
         ylist.append(i)
         if left is not None and mode != 'right':
             lefts.append(float(left) - 1. + \
