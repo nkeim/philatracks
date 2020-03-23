@@ -126,9 +126,9 @@ class NNEngine(object):
             ymin = self.frametracks.y.min() + self.nncutoff
             ymax = self.frametracks.y.max() - self.nncutoff
             r = ftr.index[ (ftr.x > xmin) & (ftr.x < xmax) & \
-                    (ftr.y > ymin) & (ftr.y < ymax) ].values
+                    (ftr.y > ymin) & (ftr.y < ymax) ].values.astype(int)
         else:
-            r = ftr.index.values
+            r = ftr.index.values.astype(int)
         if self.fast:
             return np.random.permutation(r)[:int(len(r) / 10)]
         else:
@@ -265,13 +265,15 @@ def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None,
                         on='particle', rsuffix='0').dropna()
     NNE = NNEngine(ftrcomp, cutoff, fast=fast, subset=subset)
     return NNE._affine_field(d2min_scale=d2min_scale, dview=dview)
-def local_displacements(ftr0, ftr1, cutoff, dview=None):
+def local_displacements(ftr0, ftr1, cutoff, subset=None, dview=None):
     """Compute motion of particles between frames, subtracting background.
 
     ``ftr0`` and ``ftr1`` 
         should each have a "particle" column with particle IDs.
     ``cutoff`` 
         sets the radius within which to look for neighbors.
+    ``subset``
+        See :py:class:`NNEngine`. 
     ``dview`` 
         optionally gives an IPython parallel DirectView for parallelizing the computation.
     
@@ -285,7 +287,7 @@ def local_displacements(ftr0, ftr1, cutoff, dview=None):
                         rsuffix='1').dropna()
     ftrcomp['xdisp'] = ftrcomp.x1 - ftrcomp.x
     ftrcomp['ydisp'] = ftrcomp.y1 - ftrcomp.y
-    nne = NNEngine(ftrcomp, nncutoff=cutoff)
+    nne = NNEngine(ftrcomp, nncutoff=cutoff, subset=subset)
     def neighbor_motion(pdata, data):
         return data.mean(0)
     framelocal = nne.map(neighbor_motion, ['xdisp', 'ydisp'],
