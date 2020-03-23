@@ -67,6 +67,8 @@ def fit_response(partab, toolparams):
             measured phase lag angle (degrees)
         ampl_m
             measured amplitude of motion, in meters
+        weights
+            relative weights of data points (optional)
 
     :param toolparams: dict providing data about the rheometer itself.
         Only ``toolparams["m"]`` is used here.
@@ -86,11 +88,16 @@ def fit_response(partab, toolparams):
     find the normalization for units of force, *F0*.
     """
     m = toolparams['m']
+    if 'weights' in partab.columns:
+        sigmas = 1.0 / partab.weights.values
+    else:
+        sigmas = np.ones_like(partab.freq.values)
     # Phase difference
     fit_delta = lambda x, d, k: np.arccos((k - m * x*x) / np.sqrt(x*x*d*d + (k - m*x*x)**2))
     popt_delta, pcov = curve_fit(fit_delta,
                            partab.freq.values * 2 * np.pi,
                            partab.delta.values / 180 * np.pi,
+                           sigma=sigmas, absolute_sigma=False,
                            )
     # Response amplitude
     # Since m is already a known dimensional quantity, we create
@@ -101,7 +108,9 @@ def fit_response(partab, toolparams):
     k = popt_delta[1]
     fit_ampl = lambda x, F0: F0 / np.sqrt((k - m*x*x)**2 + (x*x*d*d))
     popt_ampl, pcov = curve_fit(fit_ampl, partab.freq.values * 2 * np.pi,
-                                partab.ampl_m.values / partab.amp.values)
+                                partab.ampl_m.values / partab.amp.values,
+                                sigma=sigmas, absolute_sigma=False,
+                                )
     #print popt_ampl
     F0 = popt_ampl[0]
     print 'Inertial mass m:', m, 'kg'
@@ -165,7 +174,7 @@ def measure_response(toolpos, fpc, t_trans=0, flipsign=False):
     return phaseangle, resp_ampl / n * 4, diag
 
 
-def dynamic_response(params, toolpos, mpp=1.0, smoothwindow=7, flipsign=False):
+def dynamic_response(params, toolpos, mpp=1.0, smoothwindow=7, flipsign=False, dropna=True):
     """Instantaneous measurements in rheometer.
 
     'rheoparams' is a dict of rheometer properties (see module-level documentation).
@@ -185,7 +194,7 @@ def dynamic_response(params, toolpos, mpp=1.0, smoothwindow=7, flipsign=False):
             index=data.index)
     data['strain'] = data.resp_smooth / params['R']
     data['F'] = data.current * params['F0'] * magnetflip # Force from secondary coil (N)
-    dt = data.dropna().t.diff()
+    dt = data.t.dropna().diff()
     # Next we explicitly implement the equation of motion (as opposed to implicitly,
     # as for the FFT-based oscillatory rheometry)
     # This is m \ddot x = A I_\text{drive} - kx - d \dot x - F_\text{interface}
@@ -209,7 +218,10 @@ def dynamic_response(params, toolpos, mpp=1.0, smoothwindow=7, flipsign=False):
     data['Finter'] = Finter
     # Double the needle length, because there is material on both sides.
     data['stress'] = Finter / (2*params['L']) # N/m
-    return data.dropna()
+    if dropna:
+        return data.dropna()
+    else:
+        return data
 
 
 def measure_rheology(params, delta, ampl_px, mpp, fpc, freq, drivecurrent):
