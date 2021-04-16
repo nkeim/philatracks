@@ -283,13 +283,18 @@ def local_displacements(ftr0, ftr1, cutoff, subset=None, dview=None):
 
         The "dxlocal" and "dylocal" columns give the same result but as a displacement from ``ftr0``.
     """
+    idxname = ftr0.index.name
+    ftr0.index.name = 'id'
     ftrcomp = ftr0.join(ftr1.set_index('particle')[['x', 'y', 'frame']], on='particle',
                         rsuffix='1').dropna()
+    ftrcomp.index.name = idxname
+    ftr0.index.name = idxname
     ftrcomp['xdisp'] = ftrcomp.x1 - ftrcomp.x
     ftrcomp['ydisp'] = ftrcomp.y1 - ftrcomp.y
     nne = NNEngine(ftrcomp, nncutoff=cutoff, subset=subset)
     def neighbor_motion(pdata, data):
         return data.mean(0)
+
     framelocal = nne.map(neighbor_motion, ['xdisp', 'ydisp'],
             ['xdnhood', 'ydnhood'], dview=dview)
     framelocal['frame'] = framelocal.frame1
