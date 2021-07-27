@@ -41,7 +41,7 @@ def find_cycle_extrema(series, samples_per_cycle):
     """
     cycles = range(int(np.floor((max(series.index) - 1) / samples_per_cycle)))
     cyc_extrema = pandas.DataFrame({'cycmin': np.nan, 'cycmax': np.nan}, index=cycles)
-    smoothed = pandas.Series(signalsmooth.smooth(series.values, samples_per_cycle / 10), 
+    smoothed = pandas.Series(signalsmooth.smooth(series.values, samples_per_cycle // 10), 
             index=series.index)
     for cycnum in cyc_extrema.index:
         cycseries = smoothed[(smoothed.index > cycnum * samples_per_cycle) & \
