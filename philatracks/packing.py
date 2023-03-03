@@ -184,7 +184,7 @@ class NNEngine(object):
         for i, name in enumerate(outcols):
             rtr[name] = allresults[:,i]
         return rtr
-    def _affine_field(self, d2min_scale=1.0, dview=None):
+    def _affine_field(self, d2min_scale=1.0, dview=None, neighbor_method="kdtree"):
         # Highly-optimized affine field computation, using a direct line to FORTRAN (LAPACK).
         # The prototype for this design is the map() method.
         def worker(data, loopindices, coords, nncutoff):
@@ -193,9 +193,15 @@ class NNEngine(object):
             # Laughing in the face of danger, we use the Fortran linear system solver directly.
             solver, = scipy.linalg.lapack.get_lapack_funcs(('gelss',), (data, data))
             results = np.ones((len(loopindices), 5)) * np.nan # 5 output columns
-            neighborlist = tree.query_ball_point(coords[loopindices], nncutoff)
+            if neighbor_method == "kdtree":
+                neighborlist = tree.query_ball_point(coords[loopindices], nncutoff)
+            elif neighbor_method == "delaunay":
+                dt = scipy.spatial.Delaunay(coords[loopindices])
+                indptr, indices = dt.vertex_neighbor_vertices
+                neighborlist = [indices[indptr[i]: indptr[i+1]] for i in range(len(indptr)-1)]
             for i, (pindex, neighbors) in enumerate(zip(loopindices, neighborlist)):
-                neighbors.remove(pindex)
+                if neighbor_method == "kdtree":
+                    neighbors.remove(pindex)
                 if len(neighbors) < 2: continue  # Minimum to satisfy DOF
                 r = data[neighbors] - np.tile(data[pindex], (len(neighbors), 1))
                 # The rest of the loop body is computation-specific.
@@ -235,7 +241,7 @@ class NNEngine(object):
         # FURTHER NORMALIZE by interparticle distance, if provided.
         rtr['d2min'] = rtr.d2min / d2min_scale**2
         return rtr
-def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None, dview=None):
+def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None, dview=None, neighbor_method="kdtree"):
     """Compute local affine deformation and related quantities between 2 frames.
 
     ``ftr0`` and ``ftr1`` 
@@ -264,7 +270,7 @@ def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None,
     ftrcomp = ftr1[['particle', 'x', 'y']].join(ftr0.set_index('particle')[['x', 'y']], 
                         on='particle', rsuffix='0').dropna()
     NNE = NNEngine(ftrcomp, cutoff, fast=fast, subset=subset)
-    return NNE._affine_field(d2min_scale=d2min_scale, dview=dview)
+    return NNE._affine_field(d2min_scale=d2min_scale, dview=dview, neighbor_method=neighbor_method)
 def local_displacements(ftr0, ftr1, cutoff, subset=None, dview=None):
     """Compute motion of particles between frames, subtracting background.
 
