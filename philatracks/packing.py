@@ -199,6 +199,9 @@ class NNEngine(object):
                 dt = scipy.spatial.Delaunay(coords[loopindices])
                 indptr, indices = dt.vertex_neighbor_vertices
                 neighborlist = [indices[indptr[i]: indptr[i+1]] for i in range(len(indptr)-1)]
+                for num, neighbor in enumerate(neighborlist): # set cutoff distance
+                    distances = (coords[loopindices][neighbor, 0] - coords[loopindices][num, 0]) ** 2 + (coords[loopindices][neighbor, 1] - coords[loopindices][num, 1]) ** 2 
+                    neighborlist[num] = neighborlist[num][distances<=nncutoff**2]
             for i, (pindex, neighbors) in enumerate(zip(loopindices, neighborlist)):
                 if neighbor_method == "kdtree":
                     neighbors.remove(pindex)
