@@ -125,10 +125,10 @@ class NNEngine(object):
             xmax = self.frametracks.x.max() - self.nncutoff
             ymin = self.frametracks.y.min() + self.nncutoff
             ymax = self.frametracks.y.max() - self.nncutoff
-            r = ftr.index[ (ftr.x > xmin) & (ftr.x < xmax) & \
-                    (ftr.y > ymin) & (ftr.y < ymax) ].values.astype(int)
-        else:
-            r = ftr.index.values.astype(int)
+            ftr = ftr.loc[ (ftr.x > xmin) & (ftr.x < xmax) & \
+                    (ftr.y > ymin) & (ftr.y < ymax) ]
+        self.index_map = ftr["particle"]
+        r = ftr.index.values.astype(int)
         if self.fast:
             return np.random.permutation(r)[:int(len(r) / 10)]
         else:
@@ -184,24 +184,36 @@ class NNEngine(object):
         for i, name in enumerate(outcols):
             rtr[name] = allresults[:,i]
         return rtr
+    def _neighbor_list(self, neighbor_method="kdtree"):
+        """Construct neighbor list. ``self.coords[self.loopindices]`` is the point set and ``self.nncutoff`` is the cutoff distance. ``neighbor_method`` can be "kdtree" or "delaunay"."""
+        
+        if neighbor_method == "kdtree":
+            tree = scipy.spatial.cKDTree(self.coords, 5) # 5 levels in the tree. YMMV.
+            neighborlist = tree.query_ball_point(self.coords[self.loopindices], self.nncutoff)
+        elif neighbor_method == "delaunay":
+            dt = scipy.spatial.Delaunay(self.coords)
+            indptr, indices = dt.vertex_neighbor_vertices
+            neighborlist = [indices[indptr[i]: indptr[i+1]] for i in self.loopindices]
+            for num, (pid, neighbor) in enumerate(zip(self.loopindices, neighborlist)): # set cutoff distance
+                distances = (self.coords[neighbor, 0] - self.coords[pid, 0]) ** 2 + (self.coords[neighbor, 1] - self.coords[pid, 1]) ** 2 
+                neighborlist[num] = neighborlist[num][distances<=self.nncutoff**2]
+        return neighborlist
+    def neighbor_dict(self, neighbor_method="kdtree"):
+        """Convert neighborlist to a dict with particle numbers as keys."""
+        neighborlist = self._neighbor_list(neighbor_method)
+        neighbordict = {}
+        for num, particle in enumerate(self.index_map):
+            neighbordict[particle] = neighborlist[num]
+        return neighbordict
     def _affine_field(self, d2min_scale=1.0, dview=None, neighbor_method="kdtree"):
         # Highly-optimized affine field computation, using a direct line to FORTRAN (LAPACK).
         # The prototype for this design is the map() method.
         def worker(data, loopindices, coords, nncutoff):
             # This runs only once on each engine so it's ok to have all this setup code
-            tree = scipy.spatial.cKDTree(coords, 5) # 5 levels in the tree. YMMV.
             # Laughing in the face of danger, we use the Fortran linear system solver directly.
             solver, = scipy.linalg.lapack.get_lapack_funcs(('gelss',), (data, data))
             results = np.ones((len(loopindices), 5)) * np.nan # 5 output columns
-            if neighbor_method == "kdtree":
-                neighborlist = tree.query_ball_point(coords[loopindices], nncutoff)
-            elif neighbor_method == "delaunay":
-                dt = scipy.spatial.Delaunay(coords[loopindices])
-                indptr, indices = dt.vertex_neighbor_vertices
-                neighborlist = [indices[indptr[i]: indptr[i+1]] for i in range(len(indptr)-1)]
-                for num, neighbor in enumerate(neighborlist): # set cutoff distance
-                    distances = (coords[loopindices][neighbor, 0] - coords[loopindices][num, 0]) ** 2 + (coords[loopindices][neighbor, 1] - coords[loopindices][num, 1]) ** 2 
-                    neighborlist[num] = neighborlist[num][distances<=nncutoff**2]
+            neighborlist = self._neighbor_list(neighbor_method=neighbor_method)
             for i, (pindex, neighbors) in enumerate(zip(loopindices, neighborlist)):
                 if neighbor_method == "kdtree":
                     neighbors.remove(pindex)
@@ -431,3 +443,5 @@ def psi6(ftr, cutoff=9, fast=False, subset=None, dview=None):
     del ftr_bop['bopreal']
     del ftr_bop['bopimag']
     return ftr_bop
+
+    
