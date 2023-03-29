@@ -44,6 +44,7 @@ class NNEngine(object):
             fast=False, autoclip=True, subset=None):
         # Initialization of particle positions
         self.frametracks = frametracks
+        self.index_map = self.frametracks["particle"].reset_index(drop=True)
         self.coords = self.frametracks[['x', 'y']].values
         # Initialization of loop parameters
         self.nncutoff = nncutoff
@@ -52,6 +53,7 @@ class NNEngine(object):
         self.fast = fast
         self.loopindices = self._selected_indices(subset)
         self.nntree = None # Make later
+        
     def makeTree(self):
         """cKDTree instance"""
         if self.nntree is None:
@@ -127,7 +129,7 @@ class NNEngine(object):
             ymax = self.frametracks.y.max() - self.nncutoff
             ftr = ftr.loc[ (ftr.x > xmin) & (ftr.x < xmax) & \
                     (ftr.y > ymin) & (ftr.y < ymax) ]
-        self.index_map = ftr["particle"]
+        
         r = ftr.index.values.astype(int)
         if self.fast:
             return np.random.permutation(r)[:int(len(r) / 10)]
@@ -202,8 +204,8 @@ class NNEngine(object):
         """Convert neighborlist to a dict with particle numbers as keys."""
         neighborlist = self._neighbor_list(neighbor_method)
         neighbordict = {}
-        for num, particle in enumerate(self.index_map):
-            neighbordict[particle] = neighborlist[num]
+        for num, particle in enumerate(self.loopindices):
+            neighbordict[self.index_map[particle]] = self.index_map[neighborlist[num]].values
         return neighbordict
     def _affine_field(self, d2min_scale=1.0, dview=None, neighbor_method="kdtree"):
         # Highly-optimized affine field computation, using a direct line to FORTRAN (LAPACK).
@@ -445,3 +447,41 @@ def psi6(ftr, cutoff=9, fast=False, subset=None, dview=None):
     return ftr_bop
 
     
+if __name__ == "__main__":
+    import pandas as pd
+    np.random.seed(0)
+    ftr0 = pd.DataFrame({"x": np.random.rand(100), "y": np.random.rand(100), 
+                            "particle": np.arange(100, 200), "frame": 0})
+    # plt.scatter(ftr0.x, ftr0.y)
+    # for num, i in ftr0.iterrows():
+    #     plt.annotate(i.particle.astype("int"), (i.x, i.y), xycoords="data")
+
+    poi = [76, 90, 4, 29, 41, 58, 33]
+    ftr1 = ftr0.copy()
+    # translate by 0.05
+    ftr1.loc[poi, "x"] += 0.02
+    # rotate about it's center of mass by 5 degrees
+    theta = np.radians(-15)
+    c, s = np.cos(theta), np.sin(theta)
+    rotation_matrix = np.array(((c, -s), (s, c)))
+    coords = ftr1.loc[poi, ["x", "y"]].values # N x 2
+    center_of_mass = coords.mean(axis=0)
+    coords_relative = coords - center_of_mass
+    coords_relative_rotated = np.matmul(rotation_matrix, coords_relative.T).T
+    coords_rotated = coords_relative_rotated + center_of_mass
+    ftr1.loc[poi, ["x", "y"]] = coords_rotated
+    # add a little bit noise to all points
+    ftr1["x"] += (np.random.rand(100) - 0.5) * 0.01
+    ftr1["y"] += (np.random.rand(100) - 0.5) * 0.01
+
+    cutoff = 0.2
+    fast = False
+    subset = None
+    d2min_scale = 1.0
+    dview = None
+
+    ftrcomp = ftr1[['particle', 'x', 'y']].join(ftr0.set_index('particle')[['x', 'y']], 
+                            on='particle', rsuffix='0').dropna()
+    NNE = NNEngine(ftrcomp, cutoff, fast=fast, subset=subset)
+    # results = NNE._affine_field(d2min_scale=d2min_scale, dview=dview, neighbor_method="delaunay")
+    NNE.neighbor_dict("delaunay")
