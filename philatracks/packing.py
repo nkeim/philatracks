@@ -44,6 +44,7 @@ class NNEngine(object):
             fast=False, autoclip=True, subset=None):
         # Initialization of particle positions
         self.frametracks = frametracks
+        self.index_map = self.frametracks["particle"].reset_index(drop=True)
         self.coords = self.frametracks[['x', 'y']].values
         # Initialization of loop parameters
         self.nncutoff = nncutoff
@@ -52,6 +53,7 @@ class NNEngine(object):
         self.fast = fast
         self.loopindices = self._selected_indices(subset)
         self.nntree = None # Make later
+        
     def makeTree(self):
         """cKDTree instance"""
         if self.nntree is None:
@@ -125,10 +127,10 @@ class NNEngine(object):
             xmax = self.frametracks.x.max() - self.nncutoff
             ymin = self.frametracks.y.min() + self.nncutoff
             ymax = self.frametracks.y.max() - self.nncutoff
-            r = ftr.index[ (ftr.x > xmin) & (ftr.x < xmax) & \
-                    (ftr.y > ymin) & (ftr.y < ymax) ].values.astype(int)
-        else:
-            r = ftr.index.values.astype(int)
+            ftr = ftr.loc[ (ftr.x > xmin) & (ftr.x < xmax) & \
+                    (ftr.y > ymin) & (ftr.y < ymax) ]
+        
+        r = ftr.index.values.astype(int)
         if self.fast:
             return np.random.permutation(r)[:int(len(r) / 10)]
         else:
@@ -184,18 +186,39 @@ class NNEngine(object):
         for i, name in enumerate(outcols):
             rtr[name] = allresults[:,i]
         return rtr
-    def _affine_field(self, d2min_scale=1.0, dview=None):
+    def _neighbor_list(self, neighbor_method="kdtree"):
+        """Construct neighbor list. ``self.coords[self.loopindices]`` is the point set and ``self.nncutoff`` is the cutoff distance. ``neighbor_method`` can be "kdtree" or "delaunay"."""
+        
+        if neighbor_method == "kdtree":
+            tree = scipy.spatial.cKDTree(self.coords, 5) # 5 levels in the tree. YMMV.
+            neighborlist = tree.query_ball_point(self.coords[self.loopindices], self.nncutoff)
+        elif neighbor_method == "delaunay":
+            dt = scipy.spatial.Delaunay(self.coords)
+            indptr, indices = dt.vertex_neighbor_vertices
+            neighborlist = [indices[indptr[i]: indptr[i+1]] for i in self.loopindices]
+            for num, (pid, neighbor) in enumerate(zip(self.loopindices, neighborlist)): # set cutoff distance
+                distances = (self.coords[neighbor, 0] - self.coords[pid, 0]) ** 2 + (self.coords[neighbor, 1] - self.coords[pid, 1]) ** 2 
+                neighborlist[num] = neighborlist[num][distances<=self.nncutoff**2]
+        return neighborlist
+    def neighbor_dict(self, neighbor_method="kdtree"):
+        """Convert neighborlist to a dict with particle numbers as keys."""
+        neighborlist = self._neighbor_list(neighbor_method)
+        neighbordict = {}
+        for num, particle in enumerate(self.loopindices):
+            neighbordict[self.index_map[particle]] = self.index_map[neighborlist[num]].values
+        return neighbordict
+    def _affine_field(self, d2min_scale=1.0, dview=None, neighbor_method="kdtree"):
         # Highly-optimized affine field computation, using a direct line to FORTRAN (LAPACK).
         # The prototype for this design is the map() method.
         def worker(data, loopindices, coords, nncutoff):
             # This runs only once on each engine so it's ok to have all this setup code
-            tree = scipy.spatial.cKDTree(coords, 5) # 5 levels in the tree. YMMV.
             # Laughing in the face of danger, we use the Fortran linear system solver directly.
             solver, = scipy.linalg.lapack.get_lapack_funcs(('gelss',), (data, data))
             results = np.ones((len(loopindices), 5)) * np.nan # 5 output columns
-            neighborlist = tree.query_ball_point(coords[loopindices], nncutoff)
+            neighborlist = self._neighbor_list(neighbor_method=neighbor_method)
             for i, (pindex, neighbors) in enumerate(zip(loopindices, neighborlist)):
-                neighbors.remove(pindex)
+                if neighbor_method == "kdtree":
+                    neighbors.remove(pindex)
                 if len(neighbors) < 2: continue  # Minimum to satisfy DOF
                 r = data[neighbors] - np.tile(data[pindex], (len(neighbors), 1))
                 # The rest of the loop body is computation-specific.
@@ -235,7 +258,7 @@ class NNEngine(object):
         # FURTHER NORMALIZE by interparticle distance, if provided.
         rtr['d2min'] = rtr.d2min / d2min_scale**2
         return rtr
-def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None, dview=None):
+def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None, dview=None, neighbor_method="kdtree"):
     """Compute local affine deformation and related quantities between 2 frames.
 
     ``ftr0`` and ``ftr1`` 
@@ -264,7 +287,7 @@ def affine_field(ftr0, ftr1, cutoff=9, d2min_scale=1.0, fast=False, subset=None,
     ftrcomp = ftr1[['particle', 'x', 'y']].join(ftr0.set_index('particle')[['x', 'y']], 
                         on='particle', rsuffix='0').dropna()
     NNE = NNEngine(ftrcomp, cutoff, fast=fast, subset=subset)
-    return NNE._affine_field(d2min_scale=d2min_scale, dview=dview)
+    return NNE._affine_field(d2min_scale=d2min_scale, dview=dview, neighbor_method=neighbor_method)
 def local_displacements(ftr0, ftr1, cutoff, subset=None, dview=None):
     """Compute motion of particles between frames, subtracting background.
 
@@ -422,3 +445,43 @@ def psi6(ftr, cutoff=9, fast=False, subset=None, dview=None):
     del ftr_bop['bopreal']
     del ftr_bop['bopimag']
     return ftr_bop
+
+    
+if __name__ == "__main__":
+    import pandas as pd
+    np.random.seed(0)
+    ftr0 = pd.DataFrame({"x": np.random.rand(100), "y": np.random.rand(100), 
+                            "particle": np.arange(100, 200), "frame": 0})
+    # plt.scatter(ftr0.x, ftr0.y)
+    # for num, i in ftr0.iterrows():
+    #     plt.annotate(i.particle.astype("int"), (i.x, i.y), xycoords="data")
+
+    poi = [76, 90, 4, 29, 41, 58, 33]
+    ftr1 = ftr0.copy()
+    # translate by 0.05
+    ftr1.loc[poi, "x"] += 0.02
+    # rotate about it's center of mass by 5 degrees
+    theta = np.radians(-15)
+    c, s = np.cos(theta), np.sin(theta)
+    rotation_matrix = np.array(((c, -s), (s, c)))
+    coords = ftr1.loc[poi, ["x", "y"]].values # N x 2
+    center_of_mass = coords.mean(axis=0)
+    coords_relative = coords - center_of_mass
+    coords_relative_rotated = np.matmul(rotation_matrix, coords_relative.T).T
+    coords_rotated = coords_relative_rotated + center_of_mass
+    ftr1.loc[poi, ["x", "y"]] = coords_rotated
+    # add a little bit noise to all points
+    ftr1["x"] += (np.random.rand(100) - 0.5) * 0.01
+    ftr1["y"] += (np.random.rand(100) - 0.5) * 0.01
+
+    cutoff = 0.2
+    fast = False
+    subset = None
+    d2min_scale = 1.0
+    dview = None
+
+    ftrcomp = ftr1[['particle', 'x', 'y']].join(ftr0.set_index('particle')[['x', 'y']], 
+                            on='particle', rsuffix='0').dropna()
+    NNE = NNEngine(ftrcomp, cutoff, fast=fast, subset=subset)
+    # results = NNE._affine_field(d2min_scale=d2min_scale, dview=dview, neighbor_method="delaunay")
+    NNE.neighbor_dict("delaunay")
